@@ -13,7 +13,11 @@ function hybridSprite() {
 	// width and height of the displayed image (including animation corrections)
 	var dimension = [0, 0];
 	// sprite velocity [x-vel , y-vel]
+<<<<<<< HEAD
 	var velocity  = [0, 0];
+=======
+	var velocity  = [0,0 ];
+>>>>>>> e0025e6b93cc2a779bc8d74db22354be668a295a
 	// image url
 	var image;
 	// holds a binary representation of the image pixels
@@ -246,13 +250,13 @@ function hybridSprite() {
 		 * Impact hook
 		 * To be implemented in gameplay
 		 */
-		impact: function(force){
+		impact: function(other){
 		},
 		/**
 		 * Damage hook
 		 * To be implemented in gameplay
 		 */
-		damage: function(force){
+		damage: function(other){
 		},
 		/**
 		 * Creation hook
@@ -510,7 +514,37 @@ function hybridSpritePrototype() {
     var animationDelay  = 0;
     // flag indication whether or not the prototype data has finished loading
     var ready     = false;
-
+    
+    /**
+	 * Creates binary/alpha image data using a temporary canvas
+	 */
+    var createImageData = function(){
+		// create temporary canvas to get access to the image pixel data
+		$('<canvas id="binaryCanvas" width="'+image.width+'" height="'+image.height+'">').appendTo("#hybridRoot");
+		var canvas = document.getElementById('binaryCanvas');
+		var ctx = canvas.getContext("2d");
+		ctx.drawImage(image, 0, 0);
+		var canvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		// fill the binary image data
+		imageData = [image.width];
+		for(var x=0; x<image.width; x++){
+			imageData[x] = [image.height];
+			for(var y=0; y<image.height; y++){
+				var idx = (x + y * image.width) * 4;
+				imageData[x][y] = canvasData.data[idx+3];
+			}
+		}
+		$("#binaryCanvas").remove();
+    };
+    
+    var f_getImageData = function(){
+    	return imageData;
+    };
+    
+    var f_getImage = function(){
+    	return image;
+    };
+    
    /** @scope hybridSpritePrototype */
     return{
     	/**
@@ -518,7 +552,7 @@ function hybridSpritePrototype() {
     	 * Indicates prototype is loaded and ready 
     	 */
     	setReady: function(){
-			this.createImageData();
+			createImageData();
 			ready = true;
 		},
 		/**
@@ -539,37 +573,12 @@ function hybridSpritePrototype() {
 		 * Returns image object
 		 * @return image
 		 */
-		getImage: function() {
-			return image;
-		},
-		/**
-		 * Creates binary/alpha image data using a temporary canvas
-		 */
-		createImageData: function(){
-			// create temporary canvas to get access to the image pixel data
-			$('<canvas id="binaryCanvas" width="'+image.width+'" height="'+image.height+'">').appendTo("#hybridRoot");
-			var canvas = document.getElementById('binaryCanvas');
-			var ctx = canvas.getContext("2d");
-			ctx.drawImage(image, 0, 0);
-			var canvasData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-			// fill the binary image data
-			imageData = [image.width];
-			for(var x=0; x<image.width; x++){
-				imageData[x] = [image.height];
-				for(var y=0; y<image.height; y++){
-					var idx = (x + y * image.width) * 4;
-					imageData[x][y] = canvasData.data[idx+3];
-				}
-			}
-			$("#binaryCanvas").remove();
-		},
+		getImage: f_getImage,
 		/**
 		 * Returns image data
 		 * @return array
 		 */
-		getImageData: function(){
-			return imageData;
-		},
+		getImageData: f_getImageData,
 		/**
 		 * Set prototype id
 		 * @param val ID
@@ -649,9 +658,9 @@ function hybridSpritePrototype() {
 			// creating new active sprite
 			var sprite    = hybridSprite();
 			sprite.setId( resourceManager.getNewSpriteId() );
-			sprite.setImage(this.getImage());
-			sprite.setImageData(this.getImageData());
-			sprite.setDimension(this.getImage().width, this.getImage().height);
+			sprite.setImage(f_getImage());
+			sprite.setImageData(f_getImageData());
+			sprite.setDimension(f_getImage().width, f_getImage().height);
 			// values from event
 			sprite.setLayer(event.getLayer());
 			sprite.setType(event.getType());
@@ -663,9 +672,9 @@ function hybridSpritePrototype() {
 			// optionally create animation
 			if( animation === true ){
 				var spriteAnimation = hybridAnimation( sprite.getId(), image.width, image.height );
-				spriteAnimation.setFrames(this.getAnimationFrames() ); 
-				spriteAnimation.setRows( this.getAnimationRows() );
-				spriteAnimation.setDelay( this.getAnimationDelay() ); 
+				spriteAnimation.setFrames( animationFrames ); 
+				spriteAnimation.setRows( animationRows );
+				spriteAnimation.setDelay( animationDelay ); 
 				sprite.setAnimation(spriteAnimation);
 				//correct sprite dimension
 				sprite.setDimension(spriteAnimation.getDimension()[0], spriteAnimation.getDimension()[1]);
@@ -675,11 +684,21 @@ function hybridSpritePrototype() {
 			// assign user defined gameplay functions to sprite
 			var gameplay = hybridSpriteGameplay(sprite);
 			if( gameplay !== null ){
-				sprite.move      = gameplay.getMovement( event.getMovement() );
-				sprite.impact    = gameplay.getImpact( event.getImpact() );
-				sprite.damage    = gameplay.getDamage( event.getDamage() );
-				sprite.created   = gameplay.getCreated( event.getCreated() );
-				sprite.destroyed = gameplay.getDestroyed( event.getDestroyed() );
+				if( event.getMovement() > 0 ){
+					sprite.move      = gameplay.getMovement( event.getMovement() );
+				}
+				if( event.getImpact() > 0 ){
+					sprite.impact    = gameplay.getImpact( event.getImpact() );
+				}
+				if( event.getDamage() > 0 ){
+					sprite.damage    = gameplay.getDamage( event.getDamage() );
+				}
+				if( event.getCreated() > 0 ){
+					sprite.created   = gameplay.getCreated( event.getCreated() );
+				}
+				if( event.getDestroyed() > 0 ){
+					sprite.destroyed = gameplay.getDestroyed( event.getDestroyed() );
+				}
 			}
 			// sprite creation finalized
 			sprite.created();

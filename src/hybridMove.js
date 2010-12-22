@@ -23,26 +23,27 @@ function hybridMove() {
 		var sprites = resourceManager.getSpriteList();
 		if( sprites.length > 0 ) {
 			$.each(sprites, function(index, sprite){
-				sprite.move();
-				//check if sprite has crossed the game borders
-				var position = sprite.getPosition();
-				var width    = sprite.getDimension()[0];
-				var height   = sprite.getDimension()[1];
-				// check what kind of border the sprite can't cross
-				if( border === "screen" ){
-					if( (position[0]+width < screen.getPosition()[0]) 
+				if(sprite.getActive() === true ){
+					sprite.move();
+					var position = sprite.getPosition();
+					var width    = sprite.getDimension()[0];
+					var height   = sprite.getDimension()[1];
+					// check what kind of border the sprite can't cross
+					if( border === "screen" ){
+						if( (position[0]+width < screen.getPosition()[0]) 
 						|| (position[1]+height < screen.getPosition()[1])
 						|| (position[0] > screen.getPosition()[0]+screen.getDimension()[0])
 						|| (position[1] > screen.getPosition()[1]+screen.getDimension()[1]) ) {
-						sprite.setVitality(0, 0);
+							sprite.setInactive();
+						}
 					}
-				}
-				else if( border === "map" ){
-					if( (position[0]+width < 0) 
+					else if( border === "map" ){
+						if( (position[0]+width < 0) 
 						|| (position[1]+height < 0)
 						|| (position[0] > screen.getDimension()[0] * screen.getGameDimension()[0])
 						|| (position[1] > screen.getDimension()[1] * screen.getGameDimension()[1]) ) {
-						sprite.setVitality(0, 0);
+							sprite.setInactive();
+						}
 					}
 				}
 			});
@@ -61,6 +62,8 @@ function hybridMove() {
     				// avoid self-collisions
     				&& (spriteA.getId() !== spriteB.getId())
     				// avoid collisions with already 'dead' sprites (vitality = 0)
+    				&& (spriteA.getActive() === true)
+    				&& (spriteB.getActive() === true)
     				&& (spriteA.getVitality()[0] > 0)
     				&& (spriteB.getVitality()[0] > 0) )
     			{
@@ -102,24 +105,21 @@ function hybridMove() {
         				}
         				// collision effects
         				if( (collided && pixelaccurate) || !pixelaccurate ){
+        					// CHECK IMPACT
+        					// sprite A and B are both solid, so let them collide
+        					if( (spriteA.getMode()[0] > 0) && (spriteB.getMode()[0] > 0) ) {
+       							spriteA.impact(spriteB);
+       							spriteB.impact(spriteA);
+        					}
+        					// only different channels can damage each other
         					if( spriteA.getMode()[3] !== spriteB.getMode()[3]) {
-        						// CHECK IMPACT
-        						// sprite A is solid
-        						if( spriteA.getMode()[0] > 0 ) {
-        							// sprite B is solid
-        							if( spriteB.getMode()[0] > 0 ) {
-        								// let them collide
-        								spriteA.impact(spriteB.getMode()[0]);
-        								spriteB.impact(spriteA.getMode()[0]);
-        							}
-        						}
         						// CHECK DAMAGE
         						// spriteA takes damage
         						if( spriteA.getMode()[2] > 0 ){
         							//spriteB damages
         							if( spriteB.getMode()[1] > 0 ) {
         								// sprite A receives damage from sprite Bs force
-        								spriteA.damage(spriteB.getMode()[1]);
+        								spriteA.damage(spriteB);
         							}
         						}
         						// spriteB takes damage
@@ -127,7 +127,7 @@ function hybridMove() {
         							//spriteA damages
         							if( spriteA.getMode()[1] > 0 ) {
         								// sprite B receives damage from sprite As force
-        								spriteB.damage(spriteA.getMode()[1]);
+        								spriteB.damage(spriteA);
         							}
         						}
         					}
@@ -159,26 +159,18 @@ function hybridMove() {
 	 * // FIXME Coordinates have to be respective to the current animation frame
 	 */
 	var checkCollisionPixel = function(spriteA, spriteB, srcxA, srcyA, srcxB, srcyB, width, height) {
-		return true;
-		/*
-		document.writeln("pixel check collision1");
-		// get image cross sections
 		var dataA     = spriteA.getImageData();
 		var dataB     = spriteB.getImageData();
-		document.writeln("pixel check collision2");
 		
 		for(var x=0; x<width; x++){
 			for(var y=0; y<height; y++){
 				// collision if both alpha bytes are above zero 
 				if( (dataA[srcxA+x][srcyA+y] > 0) && (dataB[srcxB+x][srcyB+y] > 0) ){
-					document.writeln("pixel TRUE collision");
 					return true;
 				}
 			}
 		}
-		document.writeln("pixel FALSE collision");
 		return false;
-		*/
 	};
     /**
      * @private
@@ -187,12 +179,15 @@ function hybridMove() {
      */
     var cleanupSprites = function() {
     	var spriteList = resourceManager.getSpriteList();
-    	$.each(spriteList, function(index, sprite){
-    		// remove sprite from game
-    		if( sprite.getActive() === false ){
+    	// do not use $.each() at this point, as it does not check for length during looping
+    	for (var index=0; index<spriteList.length; index++){
+    		if( spriteList[index].getActive() === false ){
+    			//if( typeof sprite.getAnimation() === "object" ){
+    			//	sprite.getAnimation().stop();
+    			//}
     			spriteList.splice(index,1);
     		}
-    	});
+    	}
     };
 
     /** @scope hybridMove */
